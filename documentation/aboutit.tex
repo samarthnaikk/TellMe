@@ -1,0 +1,131 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{Function Documentation in LaTeX}
+\author{Your Name}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{\texttt{get\_pdf\_text\_chunks(pdfs)}}
+
+\textbf{Description:} This function takes a list of uploaded PDF files as input, extracts the text content from each PDF, splits the text into smaller chunks, and returns a list of these text chunks.
+
+\textbf{Parameters:}
+\begin{itemize}
+    \item \texttt{pdfs}: A list of uploaded PDF files (Streamlit UploadedFile objects).
+\end{itemize}
+
+\textbf{Returns:}
+\begin{itemize}
+    \item \texttt{all\_texts}: A list of \texttt{Document} objects, where each object contains a chunk of text from the input PDFs.
+\end{itemize}
+
+\textbf{Implementation Details:}
+\begin{enumerate}
+    \item Initializes an empty list called \texttt{all\_texts} to store the extracted text chunks.
+    \item Iterates through each \texttt{pdf} in the input list \texttt{pdfs}.
+    \item For each \texttt{pdf}, it creates a temporary file with a \texttt{.pdf} suffix to store the content of the uploaded file. The \texttt{delete=False} argument ensures that the temporary file is not automatically deleted immediately after closing.
+    \item Writes the content of the uploaded \texttt{pdf} to the temporary file.
+    \item Stores the name (path) of the temporary file in the variable \texttt{tmp\_path}.
+    \item Creates a \texttt{PyPDFLoader} object using the \texttt{tmp\_path} of the temporary PDF file.
+    \item Loads the documents from the PDF file using the \texttt{load()} method of the \texttt{PyPDFLoader}, which returns a list of \texttt{Document} objects.
+    \item Creates a \texttt{CharacterTextSplitter} object with a specified \texttt{chunk\_size} of 1000 characters and a \texttt{chunk\_overlap} of 200 characters. This splitter will divide the text into smaller, overlapping chunks.
+    \item Splits the loaded documents into text chunks using the \texttt{split\_documents()} method of the \texttt{CharacterTextSplitter}.
+    \item Extends the \texttt{all\_texts} list with the newly created text chunks.
+    \item After processing all PDFs, the function returns the \texttt{all\_texts} list containing all the extracted and chunked text.
+\end{enumerate}
+
+\section*{\texttt{get\_vectorstore(text\_chunks)}}
+
+\textbf{Description:} This function takes a list of text chunks as input, generates embeddings for these chunks using a Hugging Face embeddings model, and creates a FAISS (Facebook AI Similarity Search) vector store to index these embeddings for efficient similarity searching.
+
+\textbf{Parameters:}
+\begin{itemize}
+    \item \texttt{text\_chunks}: A list of \texttt{Document} objects, where each object contains a chunk of text.
+\end{itemize}
+
+\textbf{Returns:}
+\begin{itemize}
+    \item \texttt{vectorstore}: A FAISS vector store object containing the embeddings of the input text chunks.
+\end{itemize}
+
+\textbf{Implementation Details:}
+\begin{enumerate}
+    \item Initializes a \texttt{HuggingFaceEmbeddings} object using the pre-trained model "sentence-transformers/all-MiniLM-L6-v2". This model will be used to generate vector embeddings for the text chunks.
+    \item Creates a FAISS vector store from the input \texttt{text\_chunks} and the initialized embeddings using the \texttt{FAISS.from\_documents()} method. This method takes the list of documents and the embedding function as arguments and builds the FAISS index.
+    \item Returns the created FAISS \texttt{vectorstore}.
+\end{enumerate}
+
+\section*{\texttt{get\_conversational\_chain(vectorstore)}}
+
+\textbf{Description:} This function takes a FAISS vector store as input, initializes an Ollama language model, sets up a conversation buffer memory, and creates a conversational retrieval chain. This chain allows for question-answering based on the documents stored in the vector store, while also maintaining a conversation history.
+
+\textbf{Parameters:}
+\begin{itemize}
+    \item \texttt{vectorstore}: A FAISS vector store object containing document embeddings.
+\end{itemize}
+
+\textbf{Returns:}
+\begin{itemize}
+    \item \texttt{chain}: A \texttt{ConversationalRetrievalChain} object configured with the Ollama LLM, the vector store retriever, and the conversation buffer memory.
+\end{itemize}
+
+\textbf{Implementation Details:}
+\begin{enumerate}
+    \item Initializes an \texttt{OllamaLLM} object with the model name "llama3". This will be the language model used for generating answers.
+    \item Creates a \texttt{ConversationBufferMemory} object with the \texttt{memory\_key} set to 'chat\_history' and \texttt{return\_messages} set to True. This memory will store the conversation history as a list of messages.
+    \item Creates a \texttt{ConversationalRetrievalChain} using the \texttt{from\_llm()} class method. This method takes the following arguments:
+    \begin{itemize}
+        \item \texttt{llm}: The initialized \texttt{OllamaLLM} object.
+        \item \texttt{retriever}: The retriever obtained from the input \texttt{vectorstore} using the \texttt{as\_retriever()} method. This retriever will be used to fetch relevant documents from the vector store based on the user's query.
+        \item \texttt{memory}: The initialized \texttt{ConversationBufferMemory} object.
+    \end{itemize}
+    \item Returns the created \texttt{ConversationalRetrievalChain} object.
+\end{enumerate}
+
+\section*{\texttt{main()}}
+
+\textbf{Description:} This is the main function of the Streamlit application. It sets up the user interface, handles file uploads, processes the PDFs to create a vector store, initializes the conversational chain, and manages the user's questions and the model's responses.
+
+\textbf{Parameters:}
+\begin{itemize}
+    \item None
+\end{itemize}
+
+\textbf{Returns:}
+\begin{itemize}
+    \item None
+\end{itemize}
+
+\textbf{Implementation Details:}
+\begin{enumerate}
+    \item Sets the page configuration for the Streamlit app, including the title "Ask your PDFs".
+    \item Displays a header with the same title.
+    \item Creates a file uploader widget using \texttt{st.file\_uploader()} that allows the user to upload multiple PDF files. The uploaded files are stored in the \texttt{pdfs} variable.
+    \item Checks if any PDF files have been uploaded (\texttt{if pdfs:}):
+    \begin{enumerate}
+        \item Calls the \texttt{get\_pdf\_text\_chunks()} function with the uploaded \texttt{pdfs} to extract and chunk the text content. The resulting text chunks are stored in the \texttt{text\_chunks} variable.
+        \item Calls the \texttt{get\_vectorstore()} function with the \texttt{text\_chunks} to create a FAISS vector store. The vector store is stored in the \texttt{vectorstore} variable.
+        \item Calls the \texttt{get\_conversational\_chain()} function with the \texttt{vectorstore} to initialize the conversational retrieval chain. The chain is stored in the Streamlit session state using \texttt{st.session\_state.chain}.
+        \item Displays a success message indicating that the PDFs have been processed.
+    \end{enumerate}
+    \item Checks if the conversational chain has been initialized and stored in the session state (\texttt{if "chain" in st.session\_state:}):
+    \begin{enumerate}
+        \item Creates a text input widget using \texttt{st.text\_input()} where the user can ask questions about their PDFs. The question is stored in the \texttt{question} variable.
+        \item Checks if the user has entered a question (\texttt{if question:}):
+        \begin{enumerate}
+            \item Runs the conversational chain with the user's \texttt{question} using \texttt{st.session\_state.chain.run(question)}. The model's response is stored in the \texttt{response} variable.
+            \item Displays the \texttt{response} using \texttt{st.write()}.
+        \end{enumerate}
+    \end{enumerate}
+    \item The \texttt{if \_\_name\_\_ == "\_\_main\_\_":} block ensures that the \texttt{main()} function is executed when the script is run directly.
+\end{enumerate}
+
+\end{document}
